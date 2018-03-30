@@ -15,7 +15,7 @@ const putContent = util.promisify(fs.writeFile);
 const copy = util.promisify(fs.copyFile);
 
 const optionDefinitions = [
-  { name: 'dir', type: String, multiple: false, defaultOption: true },
+  { name: 'dir', type: String, multiple: false, defaultOption: true, defaultValue: './' },
   { name: 'copy', type: Boolean }
 ];
 
@@ -31,28 +31,28 @@ const convertData = (data, encoding) => {
   });
 }
 
-const prepareList = (files, dir) => {
+const prepareList = (files, options) => {
   return files
-    .filter(file => fs.lstatSync(path.join(dir, file)).isFile())
-    .filter(file => types.includes(mime.getType(path.join(dir, file))))
+    .filter(file => fs.lstatSync(path.join(options.dir, file)).isFile())
+    .filter(file => types.includes(mime.getType(path.join(options.dir, file))))
     .map(file => {
-      let fullpath = path.join(dir, file);
-      let { encoding } = detectCharacterEncoding(readChunk.sync(fullpath, 0, 4096));
+      let { encoding } = detectCharacterEncoding(readChunk.sync(path.join(options.dir, file), 0, 4096));
       return {
-        fullpath,
+        file,
         encoding
       }
     });
 }
 
-const processList = (list, saveDir, options) => {
+const processList = (list, options) => {
   let bar = new ProgressBar('[:percent] :bar', {
     total: list.length
   });
 
   list.forEach(async (item) => {
-    let { fullpath, encoding } = item;
-    let name = path.join(saveDir, path.basename(fullpath));
+    let { file, encoding } = item;
+    let name = path.join(options.saveDir, file);
+    let fullpath = path.join(options.dir, file);
 
     if ('UTF-8' === encoding) {
       if (options.copy) {
@@ -71,32 +71,31 @@ const processList = (list, saveDir, options) => {
   });
 }
 
-const checkFs = (dir, saveDir) => {
-  if (!fs.existsSync(dir) || !fs.lstatSync(dir).isDirectory()) {
-    console.log(`Invalid path: ${dir}`);
+const checkFs = options => {
+  if (!fs.existsSync(options.dir) || !fs.lstatSync(options.dir).isDirectory()) {
+    console.log(`Invalid path: ${options.dir}`);
     process.exit(1);
   }
 
   try {
-    fs.accessSync(dir, fs.constants.R_OK && fs.constants.W_OK);
+    fs.accessSync(options.dir, fs.constants.R_OK && fs.constants.W_OK);
   } catch (err) {
     console.log('Access denied');
     process.exit(1);
   }
 
-  if (!fs.existsSync(saveDir)) {
-    fs.mkdirSync(saveDir);
+  if (!fs.existsSync(options.saveDir)) {
+    fs.mkdirSync(options.saveDir);
   }
 }
 
 const run = options => {
-  const dir = options.dir || './';
-  const saveDir = path.join(dir, 'processed');
+  options.saveDir = path.join(options.dir, 'processed');
 
-  checkFs(dir, saveDir);
-  getFiles(dir)
-    .then(data => prepareList(data, dir))
-    .then(list => processList(list, saveDir, options))
+  checkFs(options);
+  getFiles(options.dir)
+    .then(data => prepareList(data, options))
+    .then(list => processList(list, options))
     .catch(err => console.log(err.message));
 }
 
