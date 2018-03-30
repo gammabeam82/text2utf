@@ -13,6 +13,7 @@
     "command-line-args": "^5.0.2",
     "detect-character-encoding": "^0.5.1",
     "encoding": "^0.1.12",
+    "glob": "^7.1.2",
     "iconv": "*",
     "mime": "^2.2.0",
     "progress": "^2.0.0",

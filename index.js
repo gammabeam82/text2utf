@@ -8,8 +8,8 @@ const util = require('util');
 const process = require('process');
 const commandLineArgs = require('command-line-args');
 const path = require('path');
+const glob = require("glob");
 
-const getFiles = util.promisify(fs.readdir);
 const getContent = util.promisify(fs.readFile);
 const putContent = util.promisify(fs.writeFile);
 const copy = util.promisify(fs.copyFile);
@@ -21,22 +21,22 @@ const optionDefinitions = [
 
 const types = ['application/x-subrip', 'text/plain'];
 
-const convertData = (data, encoding) => {
+const getFiles = dir => {
   return new Promise((resolve, reject) => {
-    try {
-      resolve(convertEncoding.convert(data, 'UTF-8', encoding));
-    } catch (err) {
-      reject(err);
-    }
+    glob(path.join(dir, '*.*'), { 'nodir': true }, (err, files) => {
+      if (err) {
+        reject(err);
+      }
+      resolve(files);
+    });
   });
 }
 
 const prepareList = (files, options) => {
   return files
-    .filter(file => fs.lstatSync(path.join(options.dir, file)).isFile())
-    .filter(file => types.includes(mime.getType(path.join(options.dir, file))))
+    .filter(file => types.includes(mime.getType(file)))
     .map(file => {
-      let { encoding } = detectCharacterEncoding(readChunk.sync(path.join(options.dir, file), 0, 4096));
+      let { encoding } = detectCharacterEncoding(readChunk.sync(file, 0, 4096));
       return {
         file,
         encoding
@@ -51,22 +51,20 @@ const processList = (list, options) => {
 
   list.forEach(async (item) => {
     let { file, encoding } = item;
-    let name = path.join(options.saveDir, file);
-    let fullpath = path.join(options.dir, file);
+    let dest = path.join(options.saveDir, path.basename(file));
 
     if ('UTF-8' === encoding) {
       if (options.copy) {
-        await copy(fullpath, name);
+        await copy(file, dest);
       }
       bar.tick();
       return;
     }
 
-    let data = await getContent(fullpath);
-    let convertedData = await convertData(data, encoding);
+    let data = await getContent(file);
+    let convertedData = convertEncoding.convert(data, 'UTF-8', encoding);
 
-    await putContent(name, convertedData);
-
+    await putContent(dest, convertedData);
     bar.tick();
   });
 }
