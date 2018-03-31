@@ -3,20 +3,18 @@ const detectCharacterEncoding = require('detect-character-encoding');
 const mime = require('mime');
 const readChunk = require('read-chunk');
 const ProgressBar = require('progress');
+const NodeZip = require('node-zip');
 const convertEncoding = require('encoding');
-const util = require('util');
 const process = require('process');
 const commandLineArgs = require('command-line-args');
 const path = require('path');
 const glob = require("glob");
 
-const getContent = util.promisify(fs.readFile);
-const putContent = util.promisify(fs.writeFile);
-const copy = util.promisify(fs.copyFile);
-
 const optionDefinitions = [
   { name: 'dir', type: String, multiple: false, defaultOption: true, defaultValue: './' },
-  { name: 'copy', type: Boolean }
+  { name: 'copy', type: Boolean },
+  { name: 'compress', type: Boolean },
+  { name: 'cleanup', type: Boolean, defaultValue: false }
 ];
 
 const types = ['application/x-subrip', 'text/plain'];
@@ -45,27 +43,32 @@ const prepareList = (files, options) => {
 }
 
 const processList = (list, options) => {
-  let bar = new ProgressBar('[:percent] :bar', {
-    total: list.length
-  });
+  return new Promise((resolve, reject) => {
+    let processed = [];
+    let bar = new ProgressBar('[:percent] :bar', {
+      total: list.length
+    });
 
-  list.forEach(async (item) => {
-    let { file, encoding } = item;
-    let dest = path.join(options.saveDir, path.basename(file));
+    list.forEach(item => {
+      let { file, encoding } = item;
+      let dest = path.join(options.saveDir, path.basename(file));
 
-    if ('UTF-8' === encoding) {
-      if (options.copy) {
-        await copy(file, dest);
+      if ('UTF-8' === encoding) {
+        if (options.copy) {
+          fs.copyFileSync(file, dest);
+          processed.push(dest);
+        }
+        bar.tick();
+        return;
       }
+
+      let data = fs.readFileSync(file);
+      fs.writeFileSync(dest, convertEncoding.convert(data, 'UTF-8', encoding));
+      processed.push(dest);
       bar.tick();
-      return;
-    }
+    });
 
-    let data = await getContent(file);
-    let convertedData = convertEncoding.convert(data, 'UTF-8', encoding);
-
-    await putContent(dest, convertedData);
-    bar.tick();
+    resolve(processed);
   });
 }
 
@@ -74,16 +77,29 @@ const checkFs = options => {
     console.log(`Invalid path: ${options.dir}`);
     process.exit(1);
   }
-
   try {
     fs.accessSync(options.dir, fs.constants.R_OK && fs.constants.W_OK);
   } catch (err) {
     console.log('Access denied');
     process.exit(1);
   }
-
   if (!fs.existsSync(options.saveDir)) {
     fs.mkdirSync(options.saveDir);
+  }
+}
+
+const compress = (processed, options) => {
+  if (!options.compress) {
+    return;
+  }
+
+  let zip = new NodeZip();
+  processed.forEach(file => zip.file(path.basename(file), fs.readFileSync(file)));
+  let data = zip.generate({ base64: false, compression: 'DEFLATE' });
+  fs.writeFileSync(path.join(options.saveDir, 'archive.zip'), data, 'binary');
+
+  if (options.cleanup) {
+    processed.forEach(file => fs.unlinkSync(file));
   }
 }
 
@@ -94,6 +110,7 @@ const run = options => {
   getFiles(options.dir)
     .then(data => prepareList(data, options))
     .then(list => processList(list, options))
+    .then(processed => compress(processed, options))
     .catch(err => console.log(err.message));
 }
 
