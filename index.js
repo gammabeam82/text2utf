@@ -9,6 +9,7 @@ const process = require('process');
 const commandLineArgs = require('command-line-args');
 const path = require('path');
 const glob = require("glob");
+const os = require('os');
 
 const optionDefinitions = [
   { name: 'dir', type: String, multiple: false, defaultOption: true, defaultValue: './' },
@@ -20,13 +21,11 @@ const optionDefinitions = [
 const types = ['application/x-subrip', 'text/plain'];
 
 const getFiles = dir => {
+  const globOptions = {
+    'nodir': true
+  }
   return new Promise((resolve, reject) => {
-    glob(path.join(dir, '*.*'), { 'nodir': true }, (err, files) => {
-      if (err) {
-        reject(err);
-      }
-      resolve(files);
-    });
+    glob(path.join(dir, '*.*'), globOptions, (err, files) => err ? reject(err) : resolve(files));
   });
 }
 
@@ -80,7 +79,7 @@ const checkFs = options => {
   try {
     fs.accessSync(options.dir, fs.constants.R_OK && fs.constants.W_OK);
   } catch (err) {
-    console.log('Access denied');
+    console.log(`Access denied for user ${os.userInfo().username}`);
     process.exit(1);
   }
   if (!fs.existsSync(options.saveDir)) {
