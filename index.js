@@ -2,7 +2,6 @@ const fs = require('fs');
 const detectCharacterEncoding = require('detect-character-encoding');
 const mime = require('mime');
 const readChunk = require('read-chunk');
-const ProgressBar = require('progress');
 const NodeZip = require('node-zip');
 const convertEncoding = require('encoding');
 const process = require('process');
@@ -13,9 +12,10 @@ const os = require('os');
 
 const optionDefinitions = [
   { name: 'dir', type: String, multiple: false, defaultOption: true, defaultValue: './' },
+  { name: 'encoding', type: String, multiple: false, defaultValue: 'UTF-8' },
   { name: 'copy', type: Boolean },
   { name: 'compress', type: Boolean },
-  { name: 'cleanup', type: Boolean, defaultValue: false }
+  { name: 'cleanup', type: Boolean }
 ];
 
 const types = ['application/x-subrip', 'text/plain'];
@@ -44,27 +44,28 @@ const prepareList = (files, options) => {
 const processList = (list, options) => {
   return new Promise((resolve, reject) => {
     let processed = [];
-    let bar = new ProgressBar('[:percent] :bar', {
-      total: list.length
-    });
+    let n = 1;
 
     list.forEach(item => {
       let { file, encoding } = item;
-      let dest = path.join(options.saveDir, path.basename(file));
+      let filename = path.basename(file);
+      let dest = path.join(options.saveDir, filename);
 
-      if ('UTF-8' === encoding) {
+      if (options.encoding === encoding) {
         if (options.copy) {
           fs.copyFileSync(file, dest);
+          console.log(`${n}\t copy \t\t\t ${filename}`);
+          n++;
           processed.push(dest);
         }
-        bar.tick();
         return;
       }
 
       let data = fs.readFileSync(file);
       fs.writeFileSync(dest, convertEncoding.convert(data, 'UTF-8', encoding));
+      console.log(`${n}\t ${encoding} -> ${options.encoding} \t ${filename}`);
+      n++;
       processed.push(dest);
-      bar.tick();
     });
 
     resolve(processed);
@@ -92,10 +93,14 @@ const compress = (processed, options) => {
     return;
   }
 
+  console.log('\nCompressing...');
+
   let zip = new NodeZip();
   processed.forEach(file => zip.file(path.basename(file), fs.readFileSync(file)));
   let data = zip.generate({ base64: false, compression: 'DEFLATE' });
   fs.writeFileSync(path.join(options.saveDir, 'archive.zip'), data, 'binary');
+
+  console.log('Done');
 
   if (options.cleanup) {
     processed.forEach(file => fs.unlinkSync(file));
