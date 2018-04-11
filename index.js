@@ -62,7 +62,7 @@ const processList = (list, options) => {
       }
 
       let data = fs.readFileSync(file);
-      fs.writeFileSync(dest, convertEncoding.convert(data, 'UTF-8', encoding));
+      fs.writeFileSync(dest, convertEncoding.convert(data, options.encoding, encoding));
       console.log(`${n}\t ${encoding} -> ${options.encoding} \t ${filename}`);
       n++;
       processed.push(dest);
