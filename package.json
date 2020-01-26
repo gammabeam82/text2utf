@@ -10,12 +10,12 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
-    "command-line-args": "^5.0.2",
+    "command-line-args": "^5.1.1",
     "detect-character-encoding": "^0.5.1",
     "encoding": "^0.1.12",
-    "glob": "^7.1.2",
-    "iconv": "*",
-    "mime": "^2.2.0",
+    "glob": "^7.1.6",
+    "iconv": "^2.3.5",
+    "mime": "^2.4.4",
     "node-zip": "^1.1.1",
     "read-chunk": "^2.1.0"
   }
