@@ -1,3 +1,5 @@
+#!/usr/bin/env node
+
 const fs = require('fs');
 const detectCharacterEncoding = require('detect-character-encoding');
 const mime = require('mime');
@@ -18,7 +20,7 @@ const optionDefinitions = [
   { name: 'cleanup', type: Boolean }
 ];
 
-const types = ['application/x-subrip', 'text/plain'];
+const types = ['application/x-subrip', 'text/plain', 'text/x-ssa'];
 
 const getFiles = dir => {
   const globOptions = {
@@ -77,12 +79,14 @@ const checkFs = options => {
     console.log(`Invalid path: ${options.dir}`);
     process.exit(1);
   }
+
   try {
     fs.accessSync(options.dir, fs.constants.R_OK && fs.constants.W_OK);
   } catch (err) {
     console.log(`Access denied for user ${os.userInfo().username}`);
     process.exit(1);
   }
+
   if (!fs.existsSync(options.saveDir)) {
     fs.mkdirSync(options.saveDir);
   }
