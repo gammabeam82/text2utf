@@ -11,7 +11,7 @@
   "license": "MIT",
   "dependencies": {
     "command-line-args": "^5.1.1",
-    "detect-character-encoding": "^0.5.1",
+    "detect-character-encoding": "^0.7.0",
     "encoding": "^0.1.12",
     "glob": "^7.1.6",
     "iconv": "^2.3.5",
